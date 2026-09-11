@@ -210,8 +210,7 @@
             font-weight: 600;
         }
 
-        .field input,
-        .field select {
+        .field input {
             width: 100%;
             height: 45px;
             padding: 0 13px;
@@ -223,9 +222,110 @@
             font-size: 14px;
         }
 
-        .field input:focus,
-        .field select:focus {
+        .field input:focus {
             border-color: #555;
+        }
+
+        .field input.error {
+            border-color: #ff4d4d;
+        }
+
+        .error-text {
+            display: none;
+            margin-top: 6px;
+            color: #ff5c5c;
+            font-size: 12px;
+        }
+
+        .error-text.show {
+            display: block;
+        }
+
+        .custom-select {
+            position: relative;
+            width: 100%;
+        }
+
+        .custom-select-button {
+            width: 100%;
+            height: 45px;
+            padding: 0 13px;
+            border: 1px solid #292929;
+            border-radius: 8px;
+            outline: none;
+            background: #0b0b0b;
+            color: #777;
+            font-size: 14px;
+            cursor: pointer;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: .2s ease;
+        }
+
+        .custom-select-button.selected {
+            color: #fff;
+        }
+
+        .custom-select-button:hover,
+        .custom-select.open .custom-select-button {
+            border-color: #555;
+        }
+
+        .custom-select-arrow {
+            width: 7px;
+            height: 7px;
+            border-right: 1px solid #888;
+            border-bottom: 1px solid #888;
+            transform: rotate(45deg) translateY(-2px);
+            transition: .2s ease;
+        }
+
+        .custom-select.open .custom-select-arrow {
+            transform: rotate(225deg) translateY(-1px);
+        }
+
+        .custom-options {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: calc(100% + 6px);
+            z-index: 20;
+            padding: 5px;
+            background: #111;
+            border: 1px solid #292929;
+            border-radius: 8px;
+            box-shadow: 0 15px 35px rgba(0,0,0,.45);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-5px);
+            transition: .18s ease;
+        }
+
+        .custom-select.open .custom-options {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .custom-option {
+            padding: 10px 11px;
+            border-radius: 6px;
+            color: #999;
+            font-size: 14px;
+            cursor: pointer;
+            transition: .15s ease;
+        }
+
+        .custom-option:hover {
+            background: #1b1b1b;
+            color: #fff;
+        }
+
+        .custom-option.selected {
+            background: #181818;
+            color: #fff;
         }
 
         .advanced-actions {
@@ -575,20 +675,28 @@
         <div class="field">
             <label>Name</label>
             <input id="advancedName" type="text" placeholder="Icon name...">
+            <div id="nameError" class="error-text">Name is required.</div>
         </div>
 
         <div class="field">
             <label>Size</label>
-            <input id="advancedSize" type="text" placeholder="Example: 512x512">
+            <input id="advancedSize" type="text" placeholder="128x128">
         </div>
 
         <div class="field">
             <label>Description</label>
-            <select id="advancedDescription">
-                <option value="">Ignore description</option>
-                <option value="has">Has description</option>
-                <option value="none">No description</option>
-            </select>
+
+            <div class="custom-select" id="descriptionSelect">
+                <button class="custom-select-button" id="descriptionSelectButton" type="button">
+                    <span id="descriptionSelectText">Select description</span>
+                    <span class="custom-select-arrow"></span>
+                </button>
+
+                <div class="custom-options">
+                    <div class="custom-option" data-value="has">Has description</div>
+                    <div class="custom-option" data-value="none">No description</div>
+                </div>
+            </div>
         </div>
 
         <div class="advanced-actions">
@@ -627,9 +735,14 @@
     const advancedOverlay = document.getElementById("advancedOverlay");
     const advancedName = document.getElementById("advancedName");
     const advancedSize = document.getElementById("advancedSize");
-    const advancedDescription = document.getElementById("advancedDescription");
     const advancedCancel = document.getElementById("advancedCancel");
     const advancedApply = document.getElementById("advancedApply");
+    const nameError = document.getElementById("nameError");
+
+    const descriptionSelect = document.getElementById("descriptionSelect");
+    const descriptionSelectButton = document.getElementById("descriptionSelectButton");
+    const descriptionSelectText = document.getElementById("descriptionSelectText");
+    const descriptionOptions = document.querySelectorAll(".custom-option");
 
     const modal = document.getElementById("modal");
     const modalImage = document.getElementById("modalImage");
@@ -723,6 +836,12 @@
         }
     }
 
+    function isNoDescription(description) {
+        const value = String(description || "").trim().toLowerCase();
+
+        return !value || value === "no description.";
+    }
+
     function renderIcons() {
         const normalQuery = search.value.toLowerCase().trim();
         const advancedNameQuery = advancedFilters.name.toLowerCase().trim();
@@ -745,11 +864,11 @@
             let descriptionMatch = true;
 
             if (advancedFilters.description === "has") {
-                descriptionMatch = icon.description.trim().length > 0;
+                descriptionMatch = !isNoDescription(icon.description);
             }
 
             if (advancedFilters.description === "none") {
-                descriptionMatch = icon.description.trim().length === 0;
+                descriptionMatch = isNoDescription(icon.description);
             }
 
             return normalMatch && nameMatch && sizeMatch && descriptionMatch;
@@ -786,14 +905,65 @@
     function openAdvanced() {
         advancedName.value = advancedFilters.name;
         advancedSize.value = advancedFilters.size;
-        advancedDescription.value = advancedFilters.description;
+
+        setDescriptionValue(advancedFilters.description);
+
+        nameError.classList.remove("show");
+        advancedName.classList.remove("error");
 
         advancedOverlay.classList.add("show");
     }
 
     function closeAdvanced() {
         advancedOverlay.classList.remove("show");
+        descriptionSelect.classList.remove("open");
     }
+
+    function setDescriptionValue(value) {
+        const option = [...descriptionOptions].find(item =>
+            item.dataset.value === value
+        );
+
+        if (option) {
+            descriptionSelectText.textContent = option.textContent;
+            descriptionSelectButton.classList.add("selected");
+
+            for (const other of descriptionOptions) {
+                other.classList.remove("selected");
+            }
+
+            option.classList.add("selected");
+        } else {
+            descriptionSelectText.textContent = "Select description";
+            descriptionSelectButton.classList.remove("selected");
+
+            for (const other of descriptionOptions) {
+                other.classList.remove("selected");
+            }
+        }
+    }
+
+    descriptionSelectButton.addEventListener("click", event => {
+        event.stopPropagation();
+
+        descriptionSelect.classList.toggle("open");
+    });
+
+    for (const option of descriptionOptions) {
+        option.addEventListener("click", () => {
+            advancedFilters.description = option.dataset.value;
+
+            setDescriptionValue(option.dataset.value);
+
+            descriptionSelect.classList.remove("open");
+        });
+    }
+
+    document.addEventListener("click", event => {
+        if (!descriptionSelect.contains(event.target)) {
+            descriptionSelect.classList.remove("open");
+        }
+    });
 
     advancedButton.addEventListener("click", openAdvanced);
 
@@ -803,22 +973,32 @@
         const name = advancedName.value.trim();
 
         if (!name) {
-            advancedFilters = {
-                name: "",
-                size: advancedSize.value.trim(),
-                description: advancedDescription.value
-            };
-        } else {
-            advancedFilters = {
-                name: name,
-                size: advancedSize.value.trim(),
-                description: advancedDescription.value
-            };
+            advancedName.classList.add("error");
+            nameError.classList.add("show");
+            advancedName.focus();
+            return;
         }
 
+        advancedName.classList.remove("error");
+        nameError.classList.remove("show");
+
+        advancedFilters = {
+            name: name,
+            size: advancedSize.value.trim(),
+            description: advancedFilters.description
+        };
+
         search.value = "";
+
         renderIcons();
         closeAdvanced();
+    });
+
+    advancedName.addEventListener("input", () => {
+        if (advancedName.value.trim()) {
+            advancedName.classList.remove("error");
+            nameError.classList.remove("show");
+        }
     });
 
     advancedOverlay.addEventListener("click", event => {
@@ -837,7 +1017,9 @@
 
         modalImage.src = imageURL;
         modalName.textContent = icon.name;
-        modalDescription.textContent = icon.description || "No description.";
+        modalDescription.textContent = isNoDescription(icon.description)
+            ? "No description."
+            : icon.description;
         modalSize.textContent = icon.size ? "Size: " + icon.size : "";
 
         modal.classList.add("show");
