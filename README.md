@@ -1,6 +1,6 @@
 # Free Icon
-Welcome to free icon, a simple collection of free icons made for websites, apps, and many more projects.
-Free Icon is open source, meaning anyone can view the source code and improve the project.
+Welcome to **Free Icon**, a simple collection of free icons made for websites, apps, and many more projects.
+**Free Icon** is open source, meaning anyone can view the source code and improve the project.
 
 ### Adding Icons
 You can contribute by adding your own icons to the project.
