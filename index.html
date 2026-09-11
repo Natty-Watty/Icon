@@ -113,6 +113,8 @@
             width: min(650px, 100%);
             margin: auto;
             position: relative;
+            display: flex;
+            gap: 8px;
         }
 
         .search input {
@@ -132,6 +134,129 @@
             border-color: #555;
             background: #141414;
             box-shadow: 0 0 0 4px rgba(255,255,255,0.025);
+        }
+
+        .advanced-button {
+            flex: 0 0 54px;
+            width: 54px;
+            height: 54px;
+            padding: 14px;
+            border: 1px solid #262626;
+            border-radius: 8px;
+            background: #111;
+            cursor: pointer;
+            transition: 0.25s ease;
+        }
+
+        .advanced-button:hover {
+            background: #191919;
+            border-color: #444;
+        }
+
+        .advanced-button img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .advanced-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 300;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            background: rgba(0,0,0,.65);
+            backdrop-filter: blur(10px);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity .2s ease;
+        }
+
+        .advanced-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .advanced-box {
+            width: min(380px, 100%);
+            padding: 22px;
+            background: #111;
+            border: 1px solid #292929;
+            border-radius: 10px;
+            transform: translateY(12px) scale(.97);
+            transition: transform .25s ease;
+        }
+
+        .advanced-overlay.show .advanced-box {
+            transform: translateY(0) scale(1);
+        }
+
+        .advanced-box h2 {
+            margin: 0 0 20px;
+            font-size: 20px;
+        }
+
+        .field {
+            margin-bottom: 15px;
+        }
+
+        .field label {
+            display: block;
+            margin-bottom: 7px;
+            color: #aaa;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .field input,
+        .field select {
+            width: 100%;
+            height: 45px;
+            padding: 0 13px;
+            border: 1px solid #292929;
+            border-radius: 8px;
+            outline: none;
+            background: #0b0b0b;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .field input:focus,
+        .field select:focus {
+            border-color: #555;
+        }
+
+        .advanced-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .advanced-actions button {
+            flex: 1;
+            height: 44px;
+            border: 1px solid #292929;
+            border-radius: 8px;
+            background: #191919;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .advanced-actions button:hover {
+            background: #242424;
+        }
+
+        .advanced-actions .apply {
+            background: #fff;
+            color: #000;
+            border-color: #fff;
+        }
+
+        .advanced-actions .apply:hover {
+            background: #ddd;
         }
 
         .page {
@@ -224,6 +349,12 @@
             text-overflow: ellipsis;
         }
 
+        .icon-size {
+            margin-top: 4px;
+            color: #555;
+            font-size: 11px;
+        }
+
         .empty {
             display: none;
             text-align: center;
@@ -302,6 +433,12 @@
             line-height: 1.6;
         }
 
+        .modal-size {
+            margin-top: 8px;
+            color: #666;
+            font-size: 13px;
+        }
+
         .actions {
             display: flex;
             gap: 10px;
@@ -371,7 +508,7 @@
             }
 
             .icon-card {
-                min-height: 205px;
+                min-height: 215px;
                 padding: 10px;
             }
 
@@ -385,6 +522,7 @@
         }
     </style>
 </head>
+
 <body>
 
 <header>
@@ -404,6 +542,10 @@
 
             <div class="search">
                 <input id="search" type="text" placeholder="Search icons...">
+
+                <button class="advanced-button" id="advancedButton">
+                    <img src="https://raw.githubusercontent.com/Natty-Watty/Icon/main/assets/White%20Search%20Icon-nat/White%20Search%20Icon.png" alt="Advanced Search">
+                </button>
             </div>
         </div>
 
@@ -426,6 +568,36 @@
     </section>
 </main>
 
+<div id="advancedOverlay" class="advanced-overlay">
+    <div class="advanced-box">
+        <h2>Advanced Search</h2>
+
+        <div class="field">
+            <label>Name</label>
+            <input id="advancedName" type="text" placeholder="Icon name...">
+        </div>
+
+        <div class="field">
+            <label>Size</label>
+            <input id="advancedSize" type="text" placeholder="Example: 512x512">
+        </div>
+
+        <div class="field">
+            <label>Description</label>
+            <select id="advancedDescription">
+                <option value="">Ignore description</option>
+                <option value="has">Has description</option>
+                <option value="none">No description</option>
+            </select>
+        </div>
+
+        <div class="advanced-actions">
+            <button id="advancedCancel">Cancel</button>
+            <button class="apply" id="advancedApply">Search</button>
+        </div>
+    </div>
+</div>
+
 <div id="modal" class="modal">
     <div class="modal-box">
         <div class="modal-image">
@@ -434,6 +606,7 @@
 
         <h2 id="modalName"></h2>
         <p id="modalDescription"></p>
+        <div class="modal-size" id="modalSize"></div>
 
         <div class="actions">
             <button class="download" id="downloadButton">Download</button>
@@ -450,10 +623,19 @@
     const empty = document.getElementById("empty");
     const loading = document.getElementById("loading");
 
+    const advancedButton = document.getElementById("advancedButton");
+    const advancedOverlay = document.getElementById("advancedOverlay");
+    const advancedName = document.getElementById("advancedName");
+    const advancedSize = document.getElementById("advancedSize");
+    const advancedDescription = document.getElementById("advancedDescription");
+    const advancedCancel = document.getElementById("advancedCancel");
+    const advancedApply = document.getElementById("advancedApply");
+
     const modal = document.getElementById("modal");
     const modalImage = document.getElementById("modalImage");
     const modalName = document.getElementById("modalName");
     const modalDescription = document.getElementById("modalDescription");
+    const modalSize = document.getElementById("modalSize");
     const downloadButton = document.getElementById("downloadButton");
     const copyButton = document.getElementById("copyButton");
     const closeButton = document.getElementById("closeButton");
@@ -464,6 +646,12 @@
     let icons = [];
     let selectedIcon = null;
 
+    let advancedFilters = {
+        name: "",
+        size: "",
+        description: ""
+    };
+
     async function loadIcons() {
         try {
             const response = await fetch(API);
@@ -473,7 +661,6 @@
             }
 
             const files = await response.json();
-
             const folders = files.filter(file => file.type === "dir");
 
             for (const folder of folders) {
@@ -514,7 +701,8 @@
 
                     icons.push({
                         name: description.name || folder.name,
-                        description: description.description || "No description available.",
+                        description: description.description || "",
+                        size: description.size || "",
                         image: imageFile.name,
                         folder: folder.name
                     });
@@ -536,13 +724,35 @@
     }
 
     function renderIcons() {
-        const query = search.value.toLowerCase().trim();
+        const normalQuery = search.value.toLowerCase().trim();
+        const advancedNameQuery = advancedFilters.name.toLowerCase().trim();
+        const advancedSizeQuery = advancedFilters.size.toLowerCase().trim();
 
         const filtered = icons.filter(icon => {
-            return (
-                icon.name.toLowerCase().includes(query) ||
-                icon.description.toLowerCase().includes(query)
-            );
+            const normalMatch =
+                !normalQuery ||
+                icon.name.toLowerCase().includes(normalQuery) ||
+                icon.description.toLowerCase().includes(normalQuery);
+
+            const nameMatch =
+                !advancedNameQuery ||
+                icon.name.toLowerCase().includes(advancedNameQuery);
+
+            const sizeMatch =
+                !advancedSizeQuery ||
+                String(icon.size).toLowerCase() === advancedSizeQuery;
+
+            let descriptionMatch = true;
+
+            if (advancedFilters.description === "has") {
+                descriptionMatch = icon.description.trim().length > 0;
+            }
+
+            if (advancedFilters.description === "none") {
+                descriptionMatch = icon.description.trim().length === 0;
+            }
+
+            return normalMatch && nameMatch && sizeMatch && descriptionMatch;
         });
 
         grid.innerHTML = "";
@@ -563,7 +773,8 @@
                     <img src="${imageURL}" alt="">
                 </div>
                 <div class="icon-name">${escapeHTML(icon.name)}</div>
-                <div class="icon-description">${escapeHTML(icon.description)}</div>
+                <div class="icon-description">${escapeHTML(icon.description || "No description.")}</div>
+                ${icon.size ? `<div class="icon-size">${escapeHTML(icon.size)}</div>` : ""}
             `;
 
             card.addEventListener("click", () => openModal(icon));
@@ -571,6 +782,50 @@
             grid.appendChild(card);
         }
     }
+
+    function openAdvanced() {
+        advancedName.value = advancedFilters.name;
+        advancedSize.value = advancedFilters.size;
+        advancedDescription.value = advancedFilters.description;
+
+        advancedOverlay.classList.add("show");
+    }
+
+    function closeAdvanced() {
+        advancedOverlay.classList.remove("show");
+    }
+
+    advancedButton.addEventListener("click", openAdvanced);
+
+    advancedCancel.addEventListener("click", closeAdvanced);
+
+    advancedApply.addEventListener("click", () => {
+        const name = advancedName.value.trim();
+
+        if (!name) {
+            advancedFilters = {
+                name: "",
+                size: advancedSize.value.trim(),
+                description: advancedDescription.value
+            };
+        } else {
+            advancedFilters = {
+                name: name,
+                size: advancedSize.value.trim(),
+                description: advancedDescription.value
+            };
+        }
+
+        search.value = "";
+        renderIcons();
+        closeAdvanced();
+    });
+
+    advancedOverlay.addEventListener("click", event => {
+        if (event.target === advancedOverlay) {
+            closeAdvanced();
+        }
+    });
 
     function openModal(icon) {
         selectedIcon = icon;
@@ -582,7 +837,8 @@
 
         modalImage.src = imageURL;
         modalName.textContent = icon.name;
-        modalDescription.textContent = icon.description;
+        modalDescription.textContent = icon.description || "No description.";
+        modalSize.textContent = icon.size ? "Size: " + icon.size : "";
 
         modal.classList.add("show");
     }
@@ -622,15 +878,38 @@
             "/" +
             encodeURIComponent(selectedIcon.image);
 
-        await navigator.clipboard.writeText(imageURL);
+        try {
+            await navigator.clipboard.writeText(imageURL);
 
-        const oldText = copyButton.textContent;
+            const oldText = copyButton.textContent;
 
-        copyButton.textContent = "Copied!";
+            copyButton.textContent = "Copied!";
 
-        setTimeout(() => {
-            copyButton.textContent = oldText;
-        }, 1200);
+            setTimeout(() => {
+                copyButton.textContent = oldText;
+            }, 1200);
+        } catch (error) {
+            const textarea = document.createElement("textarea");
+
+            textarea.value = imageURL;
+            textarea.style.position = "fixed";
+            textarea.style.opacity = "0";
+
+            document.body.appendChild(textarea);
+
+            textarea.focus();
+            textarea.select();
+            textarea.setSelectionRange(0, textarea.value.length);
+
+            document.execCommand("copy");
+            textarea.remove();
+
+            copyButton.textContent = "Copied!";
+
+            setTimeout(() => {
+                copyButton.textContent = "Copy Link";
+            }, 1200);
+        }
     });
 
     closeButton.addEventListener("click", closeModal);
@@ -644,10 +923,19 @@
     document.addEventListener("keydown", event => {
         if (event.key === "Escape") {
             closeModal();
+            closeAdvanced();
         }
     });
 
-    search.addEventListener("input", renderIcons);
+    search.addEventListener("input", () => {
+        advancedFilters = {
+            name: "",
+            size: "",
+            description: ""
+        };
+
+        renderIcons();
+    });
 
     for (const button of document.querySelectorAll(".nav button")) {
         button.addEventListener("click", () => {
