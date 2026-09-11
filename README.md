@@ -12,3 +12,6 @@ assets/
         Icon.png
         description.json
 ```
+
+### Developers & Credits
+[Nat](https://github.com/Natty-Watty) - Html and icon
