@@ -231,6 +231,12 @@
             color: #666;
         }
 
+        .loading {
+            text-align: center;
+            padding: 80px 20px;
+            color: #666;
+        }
+
         .modal {
             position: fixed;
             inset: 0;
@@ -401,6 +407,10 @@
             </div>
         </div>
 
+        <div id="loading" class="loading">
+            Loading icons...
+        </div>
+
         <div id="iconGrid" class="icon-grid"></div>
 
         <div id="empty" class="empty">
@@ -438,6 +448,7 @@
     const grid = document.getElementById("iconGrid");
     const search = document.getElementById("search");
     const empty = document.getElementById("empty");
+    const loading = document.getElementById("loading");
 
     const modal = document.getElementById("modal");
     const modalImage = document.getElementById("modalImage");
@@ -447,41 +458,81 @@
     const copyButton = document.getElementById("copyButton");
     const closeButton = document.getElementById("closeButton");
 
+    const API = "https://api.github.com/repos/Natty-Watty/Icon/contents/assets?ref=main";
+    const RAW = "https://raw.githubusercontent.com/Natty-Watty/Icon/main/assets/";
+
     let icons = [];
     let selectedIcon = null;
 
     async function loadIcons() {
         try {
-            const response = await fetch("assets/description.json");
-            const data = await response.json();
+            const response = await fetch(API);
 
-            if (Array.isArray(data)) {
-                icons = data;
-            } else if (data.icons && Array.isArray(data.icons)) {
-                icons = data.icons;
-            } else {
-                icons = [data];
+            if (!response.ok) {
+                throw new Error("Failed to load assets");
             }
 
+            const files = await response.json();
+
+            const folders = files.filter(file => file.type === "dir");
+
+            for (const folder of folders) {
+                try {
+                    const folderResponse = await fetch(
+                        "https://api.github.com/repos/Natty-Watty/Icon/contents/assets/" +
+                        encodeURIComponent(folder.name) +
+                        "?ref=main"
+                    );
+
+                    if (!folderResponse.ok) {
+                        continue;
+                    }
+
+                    const folderFiles = await folderResponse.json();
+
+                    const descriptionFile = folderFiles.find(file =>
+                        file.type === "file" &&
+                        file.name.toLowerCase() === "description.json"
+                    );
+
+                    const imageFile = folderFiles.find(file =>
+                        file.type === "file" &&
+                        /\.(png|jpg|jpeg|webp)$/i.test(file.name)
+                    );
+
+                    if (!descriptionFile || !imageFile) {
+                        continue;
+                    }
+
+                    const descriptionResponse = await fetch(descriptionFile.download_url);
+
+                    if (!descriptionResponse.ok) {
+                        continue;
+                    }
+
+                    const description = await descriptionResponse.json();
+
+                    icons.push({
+                        name: description.name || folder.name,
+                        description: description.description || "No description available.",
+                        image: imageFile.name,
+                        folder: folder.name
+                    });
+                } catch (error) {
+                    console.error(error);
+                }
+            }
+
+            loading.style.display = "none";
             renderIcons();
         } catch (error) {
             console.error(error);
+
+            loading.style.display = "none";
             grid.innerHTML = "";
             empty.textContent = "Could not load icons.";
             empty.style.display = "block";
         }
-    }
-
-    function getImage(icon) {
-        return icon.image || icon.png || icon.file || icon.filename || "";
-    }
-
-    function getName(icon) {
-        return icon.name || "Unnamed Icon";
-    }
-
-    function getDescription(icon) {
-        return icon.description || "No description available.";
     }
 
     function renderIcons() {
@@ -489,8 +540,8 @@
 
         const filtered = icons.filter(icon => {
             return (
-                getName(icon).toLowerCase().includes(query) ||
-                getDescription(icon).toLowerCase().includes(query)
+                icon.name.toLowerCase().includes(query) ||
+                icon.description.toLowerCase().includes(query)
             );
         });
 
@@ -499,17 +550,20 @@
         empty.style.display = filtered.length ? "none" : "block";
 
         for (const icon of filtered) {
-            const image = getImage(icon);
+            const imageURL = RAW +
+                encodeURIComponent(icon.folder) +
+                "/" +
+                encodeURIComponent(icon.image);
 
             const card = document.createElement("div");
             card.className = "icon-card";
 
             card.innerHTML = `
                 <div class="icon-preview">
-                    <img src="assets/png/${image}" alt="">
+                    <img src="${imageURL}" alt="">
                 </div>
-                <div class="icon-name">${escapeHTML(getName(icon))}</div>
-                <div class="icon-description">${escapeHTML(getDescription(icon))}</div>
+                <div class="icon-name">${escapeHTML(icon.name)}</div>
+                <div class="icon-description">${escapeHTML(icon.description)}</div>
             `;
 
             card.addEventListener("click", () => openModal(icon));
@@ -521,11 +575,14 @@
     function openModal(icon) {
         selectedIcon = icon;
 
-        const image = getImage(icon);
+        const imageURL = RAW +
+            encodeURIComponent(icon.folder) +
+            "/" +
+            encodeURIComponent(icon.image);
 
-        modalImage.src = "assets/png/" + image;
-        modalName.textContent = getName(icon);
-        modalDescription.textContent = getDescription(icon);
+        modalImage.src = imageURL;
+        modalName.textContent = icon.name;
+        modalDescription.textContent = icon.description;
 
         modal.classList.add("show");
     }
@@ -535,27 +592,40 @@
     }
 
     downloadButton.addEventListener("click", () => {
-        if (!selectedIcon) return;
+        if (!selectedIcon) {
+            return;
+        }
 
-        const image = getImage(selectedIcon);
+        const imageURL = RAW +
+            encodeURIComponent(selectedIcon.folder) +
+            "/" +
+            encodeURIComponent(selectedIcon.image);
 
         const link = document.createElement("a");
-        link.href = "assets/png/" + image;
-        link.download = image;
+
+        link.href = imageURL;
+        link.download = selectedIcon.image;
+        link.target = "_blank";
+
         document.body.appendChild(link);
         link.click();
         link.remove();
     });
 
     copyButton.addEventListener("click", async () => {
-        if (!selectedIcon) return;
+        if (!selectedIcon) {
+            return;
+        }
 
-        const image = getImage(selectedIcon);
-        const link = new URL("assets/png/" + image, window.location.href).href;
+        const imageURL = RAW +
+            encodeURIComponent(selectedIcon.folder) +
+            "/" +
+            encodeURIComponent(selectedIcon.image);
 
-        await navigator.clipboard.writeText(link);
+        await navigator.clipboard.writeText(imageURL);
 
         const oldText = copyButton.textContent;
+
         copyButton.textContent = "Copied!";
 
         setTimeout(() => {
