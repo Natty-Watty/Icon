@@ -13,5 +13,8 @@ assets/
         description.json
 ```
 
+## Websites
+[Free Icon](https://natty-watty.github.io/Icon/)
+
 ### Developers & Credits
-[Nat](https://github.com/Natty-Watty) - Html and icon
+[Nat](https://github.com/Natty-Watty) - Html and icons
